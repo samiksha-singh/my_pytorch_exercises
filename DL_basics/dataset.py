@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 import torch
 #from skimage import io, transform
 import numpy as np
@@ -7,8 +6,6 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-import parseXml
-import savepath
 import cv2
 from pathlib import Path
 import argparse
@@ -50,6 +47,7 @@ class PascalVOC(Dataset):
     def __getitem__(self, index):
         f_img = self.list_imgs[index]
         img = cv2.imread(str(f_img))
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img_tensor = transforms.ToTensor()(img)
 
 
@@ -100,6 +98,28 @@ class PascalVOC(Dataset):
             raise ValueError(f"No images found, {dir_label}")
         return list_labels
 
+def collate_fn(batch):
+    """
+    The function creates a list of images and labels into a batch
+    The purpose behind using the special function is because the size of our label tensor is not constant because
+    we have variable number of bounding boxes per image
+    Args:
+        batch: List of outputs from each dataset instance in Dataloader
+
+    Returns:
+        Tensor: Image
+        List[Tensor]: labels
+
+    """
+    img_list =[]
+    label_list =[]
+    for item in batch:
+        img_list.append(item[0])
+        label_list.append(item[1])
+    img_tensor = torch.stack(img_list)
+
+    return img_tensor, label_list
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -114,11 +134,33 @@ def main():
         raise ValueError(f"Not a directory {dir_img}")
 
     dataset = PascalVOC(dir_img,dir_label)
-    print(len(dataset))
-    a, b = dataset[0]
-    print("hello")
-    print(type(a), type(b))
+    print("size of dataset: ",len(dataset))
+    for batch_idx, batch in enumerate(dataset):
+        img, label = batch
+        img_np = (img.numpy()*255).astype(np.uint8)
+        img_np = img_np.transpose((1,2,0))
 
+        label_np = label.numpy()
+        img_opencv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+        for item in label_np:
+            start_point = (item[1], item[2])
+            end_point = (item[3], item[4])
+            color = (255,0,0)
+            thickness = 2
+            image = cv2.rectangle(img_opencv, start_point, end_point, color, thickness)
+        cv2.imwrite("new_img.png", image)
+
+        if batch_idx > 0:
+            break
+    #print(label_np)
+
+    training_generator = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True,collate_fn=collate_fn)
+    for idx, batch in enumerate(training_generator):
+        img , label = batch
+        print(img.shape, len(label))
+        print(img[0].shape)
+        if idx > 0:
+            break
 if __name__ == "__main__":
     main()
 
