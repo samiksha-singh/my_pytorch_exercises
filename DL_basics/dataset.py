@@ -120,6 +120,19 @@ def collate_fn(batch):
 
     return img_tensor, label_list
 
+def draw_bbox(img, label):
+    img_np = (img.numpy() * 255).astype(np.uint8)
+    img_np = img_np.transpose((1, 2, 0)) #to change the order of channel
+    label_np = label.numpy()
+    img_opencv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    for item in label_np:
+        start_point = (item[1], item[2])
+        end_point = (item[3], item[4])
+        color = (255, 0, 0)
+        thickness = 2
+        image = cv2.rectangle(img_opencv, start_point, end_point, color, thickness)
+    return image
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -135,32 +148,19 @@ def main():
 
     dataset = PascalVOC(dir_img,dir_label)
     print("size of dataset: ",len(dataset))
-    for batch_idx, batch in enumerate(dataset):
-        img, label = batch
-        img_np = (img.numpy()*255).astype(np.uint8)
-        img_np = img_np.transpose((1,2,0))
-
-        label_np = label.numpy()
-        img_opencv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-        for item in label_np:
-            start_point = (item[1], item[2])
-            end_point = (item[3], item[4])
-            color = (255,0,0)
-            thickness = 2
-            image = cv2.rectangle(img_opencv, start_point, end_point, color, thickness)
-        cv2.imwrite("new_img.png", image)
-
-        if batch_idx > 0:
-            break
-    #print(label_np)
 
     training_generator = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True,collate_fn=collate_fn)
+    img_bbox = []
     for idx, batch in enumerate(training_generator):
-        img , label = batch
-        print(img.shape, len(label))
-        print(img[0].shape)
+        images , labels = batch
+        for img, label in zip(images,labels):
+            img = draw_bbox(img,label)
+            img_bbox.append(img)
+            concat_img = np.concatenate(img_bbox, axis = 1)
+
         if idx > 0:
             break
+    cv2.imwrite("concat_img.jpg", concat_img)
 if __name__ == "__main__":
     main()
 
