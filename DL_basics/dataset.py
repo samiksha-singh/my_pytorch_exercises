@@ -53,8 +53,11 @@ class PascalVOC(Dataset):
 
         f_label = self.list_labels[index]
         label = self.read_label(f_label)
-        label_tensor = torch.tensor(label)
-
+        label_numpy = np.array(label)
+        #print(label_numpy)
+        #print(label_numpy.shape)
+        label_tensor = torch.tensor(label_numpy)
+        #print(label_tensor.shape)
         return img_tensor, label_tensor
 
     def read_label(self,label):
@@ -71,7 +74,7 @@ class PascalVOC(Dataset):
             bbox = _object.find('bndbox')
             for child in bbox:
                 list_obj.append(int(child.text))
-                # print(list_obj)
+                #print(list_obj)
             ele_obj_list.append(list_obj)
 
         # change the sting class value to integer value for it to convert into a tensor
@@ -81,7 +84,7 @@ class PascalVOC(Dataset):
             class_int = self.class_dict[class_str]
             item[0] = class_int
             label_list.append(item)
-        #print(ele_obj_list)
+        #print(label_list)
         return label_list
 
     def get_image_list(self, dir_img):
@@ -117,7 +120,6 @@ def collate_fn(batch):
         img_list.append(item[0])
         label_list.append(item[1])
     img_tensor = torch.stack(img_list)
-
     return img_tensor, label_list
 
 def draw_bbox(img, label):
