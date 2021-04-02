@@ -9,6 +9,7 @@ from torchvision import transforms, utils
 import cv2
 from pathlib import Path
 import argparse
+import transforms as trans
 
 class PascalVOC(Dataset):
     def __init__(self, dir_img, dir_label, transform=None ):
@@ -53,11 +54,8 @@ class PascalVOC(Dataset):
 
         f_label = self.list_labels[index]
         label = self.read_label(f_label)
-        label_numpy = np.array(label)
-        #print(label_numpy)
-        #print(label_numpy.shape)
-        label_tensor = torch.tensor(label_numpy)
-        #print(label_tensor.shape)
+        label_tensor = torch.tensor(label)
+
         return img_tensor, label_tensor
 
     def read_label(self,label):
@@ -74,7 +72,7 @@ class PascalVOC(Dataset):
             bbox = _object.find('bndbox')
             for child in bbox:
                 list_obj.append(int(child.text))
-                #print(list_obj)
+                # print(list_obj)
             ele_obj_list.append(list_obj)
 
         # change the sting class value to integer value for it to convert into a tensor
@@ -84,7 +82,7 @@ class PascalVOC(Dataset):
             class_int = self.class_dict[class_str]
             item[0] = class_int
             label_list.append(item)
-        #print(label_list)
+        #print(ele_obj_list)
         return label_list
 
     def get_image_list(self, dir_img):
@@ -120,6 +118,7 @@ def collate_fn(batch):
         img_list.append(item[0])
         label_list.append(item[1])
     img_tensor = torch.stack(img_list)
+
     return img_tensor, label_list
 
 def draw_bbox(img, label):
@@ -155,14 +154,17 @@ def main():
     img_bbox = []
     for idx, batch in enumerate(training_generator):
         images , labels = batch
-        for img, label in zip(images,labels): #single image and label of 1 image
-            img = draw_bbox(img,label)
-            img_bbox.append(img)
-            concat_img = np.concatenate(img_bbox, axis = 1)
+        for item in batch:
+            #print(len(item))
+            trans.ImgAug.__call__(item)
+        # for img, label in zip(images,labels):
+        #     img = draw_bbox(img,label)
+        #     img_bbox.append(img)
+        #     concat_img = np.concatenate(img_bbox, axis = 1)
 
         if idx > 0:
             break
-    cv2.imwrite("concat_img.jpg", concat_img)
+    #cv2.imwrite("concat_img.jpg", concat_img)
 if __name__ == "__main__":
     main()
 
