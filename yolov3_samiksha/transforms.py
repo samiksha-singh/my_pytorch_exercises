@@ -19,8 +19,8 @@ class ImgAug(object):
         img, boxes = data
 
         # Convert xywh to xyxy
-        boxes = np.array(boxes)
-        #boxes[:, 1:] = xywh2xyxy_np(boxes[:, 1:]) #no need to do this
+        # boxes = np.array(boxes)
+        # boxes[:, 1:] = xywh2xyxy_np(boxes[:, 1:]) #no need to do this
 
         # Convert bounding boxes to imgaug
         bounding_boxes = BoundingBoxesOnImage(
@@ -34,6 +34,16 @@ class ImgAug(object):
 
         # Clip out of image boxes
         bounding_boxes = bounding_boxes.clip_out_of_image()
+
+        return img, bounding_boxes
+
+
+class RelativeLabels(object):
+    def __init__(self, ):
+        pass
+
+    def __call__(self, data):
+        img, bounding_boxes = data
 
         # Convert bounding boxes back to numpy
         boxes = np.zeros((len(bounding_boxes), 5))
@@ -51,30 +61,9 @@ class ImgAug(object):
             boxes[box_idx, 3] = (x2 - x1)
             boxes[box_idx, 4] = (y2 - y1)
 
-        return img, boxes
-
-
-class RelativeLabels(object):
-    def __init__(self, ):
-        pass
-
-    def __call__(self, data):
-        img, boxes = data
-        w, h, _ = img.shape
-        boxes[:,[1,3]] /= h
-        boxes[:,[2,4]] /= w
-        return img, boxes
-
-
-class AbsoluteLabels(object):
-    def __init__(self, ):
-        pass
-
-    def __call__(self, data):
-        img, boxes = data
-        w, h, _ = img.shape
-        boxes[:,[1,3]] *= h
-        boxes[:,[2,4]] *= w
+        h, w, _ = img.shape
+        boxes[:,[1,3]] /= w
+        boxes[:,[2,4]] /= h
         return img, boxes
 
 
@@ -93,28 +82,28 @@ class ToTensor(object):
 
     def __call__(self, data):
         img, boxes = data
-        # Extract image as PyTorch tensor
         img = transforms.ToTensor()(img)
-
-        bb_targets = torch.zeros((len(boxes), 6))
-        bb_targets[:, 1:] = transforms.ToTensor()(boxes)
+        bb_targets = transforms.ToTensor()(boxes)
 
         return img, bb_targets
 
 
 class Resize(object):
     def __init__(self, size):
-        self.size = size
+        self.augmentation = iaa.Resize({"height": size, "width": size})
 
     def __call__(self, data):
         img, boxes = data
-        img = F.interpolate(img.unsqueeze(0), size=self.size, mode="nearest").squeeze(0)
-        return img, boxes
+        img, bounding_boxes = self.augmentation(
+            image=img,
+            bounding_boxes=boxes
+        )
+        return img, bounding_boxes
 
 
 DEFAULT_TRANSFORMS = transforms.Compose([
-        AbsoluteLabels(),
-        PadSquare(),
-        RelativeLabels(),
-        ToTensor(),
-    ])
+    PadSquare(),
+    Resize(320),
+    RelativeLabels(),
+    ToTensor(),
+])
