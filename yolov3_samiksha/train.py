@@ -6,7 +6,9 @@ from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 import wandb
 import cv2
-
+import argparse
+from utils.logger import *
+from models import *
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
@@ -111,5 +113,31 @@ def main():
     print("Done")
 
 if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--epochs", type=int, default=300, help="number of epochs")
+        parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
+        parser.add_argument("--pretrained_weights", type=str, help="if specified starts from checkpoint model")
+        parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
+        parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
+        parser.add_argument("--checkpoint_interval", type=int, default=1, help="interval between saving model weights")
+        parser.add_argument("--evaluation_interval", type=int, default=1, help="interval evaluations on validation set")
+        parser.add_argument("--multiscale_training", default=True, help="allow for multi-scale training")
+        parser.add_argument("--verbose", "-v", default=False, action='store_true',
+                            help="Makes the training more verbose")
+        parser.add_argument("--logdir", type=str, default="logs",
+                            help="Defines the directory where the training log files are stored")
+        opt = parser.parse_args()
+
+        logger = Logger(opt.logdir)
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        os.makedirs("output", exist_ok=True)
+        os.makedirs("checkpoints", exist_ok=True)
+
+        # Initiate model
+        model = Darknet(opt.model_def).to(device)
+        model.apply(weights_init_normal)
+
 
