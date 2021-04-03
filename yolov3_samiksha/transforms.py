@@ -83,7 +83,9 @@ class ToTensor(object):
     def __call__(self, data):
         img, boxes = data
         img = transforms.ToTensor()(img)
-        bb_targets = transforms.ToTensor()(boxes)
+
+        bb_targets = torch.zeros((len(boxes), 6))
+        bb_targets[:, 1:] = torch.tensor(boxes)
 
         return img, bb_targets
 

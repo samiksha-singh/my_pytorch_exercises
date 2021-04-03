@@ -3,7 +3,6 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import cv2
@@ -13,8 +12,10 @@ from transforms import DEFAULT_TRANSFORMS
 
 
 class PascalVOC(Dataset):
-    def __init__(self, dir_img, dir_label, transform=None ):
+    def __init__(self, dir_root: Path, transform=None ):
 
+        dir_img = dir_root / Path("VOCdevkit/VOC2007/JPEGImages")
+        dir_label = dir_root / Path("VOCdevkit/VOC2007/Annotations")
         self.list_imgs = self.get_image_list(dir_img)
         self.list_labels = self.get_label_list(dir_label)
         self.transform = transform
@@ -62,23 +63,23 @@ class PascalVOC(Dataset):
                 return
         else:
             image = transforms.ToTensor()(img_numpy)
-            label = torch.tensor(label_numpy).unsqueeze(0)  # Add channels dimension
+            label = torch.tensor(label_numpy)
             _, h, w = image.shape
 
             # Convert xyxy (min/max) to xywh
-            x_min = label[:,:,1]
-            y_min = label[:,:,2]
-            x_max = label[:,:,3]
-            y_max = label[:,:,4]
+            y_min = label[:, 2]
+            x_min = label[:, 1]
+            x_max = label[:, 3]
+            y_max = label[:, 4]
             bb_target = torch.zeros_like(label)
-            bb_target[:,:,1] = (x_min + x_max) / 2
-            bb_target[:,:,2] = (y_min + y_max) / 2
-            bb_target[:,:,3] = x_max - x_min
-            bb_target[:,:,4] = y_max - y_min
+            bb_target[:, 1] = (x_min + x_max) / 2
+            bb_target[:, 2] = (y_min + y_max) / 2
+            bb_target[:, 3] = x_max - x_min
+            bb_target[:, 4] = y_max - y_min
 
             # to convert absolute coordinated into relative coordinates
-            bb_target[:, :, [1, 3]] /= w
-            bb_target[:, :, [2, 4]] /= h
+            bb_target[:, [1, 3]] /= w
+            bb_target[:, [2, 4]] /= h
 
         return image, bb_target
 
@@ -136,14 +137,20 @@ def collate_fn(batch):
         List[Tensor]: labels
 
     """
-    img_list =[]
-    label_list =[]
-    for item in batch:
-        img_list.append(item[0])
-        label_list.append(item[1])
-    img_tensor = torch.stack(img_list)
+    batch = [data for data in batch if data is not None]
+    imgs, bb_targets = list(zip(*batch))
 
-    return img_tensor, label_list
+    # Resize images to input shape
+    imgs = torch.stack([img for img in imgs])
+
+    # Add sample index to targets.
+    # If each label is shape (N, 5), we concatenate along the 0th axis. To distinguish bboxes of different images,
+    # we add an image index to the 1st axis.
+    for i, boxes in enumerate(bb_targets):
+        boxes[:, 0] = i
+    bb_targets = torch.cat(bb_targets, 0)
+
+    return imgs, bb_targets
 
 
 def draw_bbox(img, label):
@@ -186,18 +193,16 @@ def draw_bbox(img, label):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dir_img", type=Path, required=True)
-    parser.add_argument("--dir_label", type=Path,  required=True)
+    parser.add_argument("--dir_root", type=Path, required=True,
+                        help="Root directory for train. Contains the VOCdevkit dir")
     args = parser.parse_args()
 
-    dir_img = args.dir_img
-    dir_label = args.dir_label
+    dir_root = args.dir_root
+    if not dir_root.is_dir():
+        raise ValueError(f"Not a directory: {dir_root}")
 
-    if not dir_img.is_dir():
-        raise ValueError(f"Not a directory {dir_img}")
-
-    dataset = PascalVOC(dir_img,dir_label, transform=DEFAULT_TRANSFORMS)
-    print("size of dataset: ", len(dataset))
+    dataset = PascalVOC(dir_root, transform=DEFAULT_TRANSFORMS)
+    print("Size of dataset: ", len(dataset))
 
     training_generator = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
 
