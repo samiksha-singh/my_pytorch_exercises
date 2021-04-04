@@ -34,7 +34,7 @@ def train_loop (dataloader, model, compute_loss, optimizer,device):
         optimizer.step()
 
         loss_, current = loss.item(), batch_idx * len(imgs)
-        wandb.log({"Train/loss": loss_})
+        #wandb.log({"Train/loss": loss_})
 
         if batch_idx % 100 == 0:
             print(f"loss : {loss_:>7f} [{current:>5d}/{len(dataloader.dataset):>5d}]")
@@ -54,13 +54,13 @@ def test_loop(dataloader, model, compute_loss, device):
             test_loss += loss
 
     test_loss /= size
-    wandb.log({"Test/loss": test_loss.cpu().item()})
+    #wandb.log({"Test/loss": test_loss.cpu().item()})
 
     print(f"Avg loss: {test_loss.cpu().item():>8f} \n")
 
 
 def main(opt):
-    wandb.init(project="training_loop_tutorial", entity='samiksha')
+    #wandb.init(project="training_loop_tutorial", entity='samiksha')
 
     logger = Logger(opt.logdir)
 
@@ -96,10 +96,12 @@ def main(opt):
 
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
-        # train_loop(trainloader, model, compute_loss, optimizer, device)
+        train_loop(trainloader, model, compute_loss, optimizer, device)
         test_loop(testloader, model, compute_loss, device)
 
-    # path_to_img = "/home/samiksha/my_pycharm_projects/machine_learning_pycharm/Dataset_customized/images/000005.jpg"
+
+
+
     # img = cv2.imread(path_to_img)
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     # image = wandb.Image(img, boxes={
