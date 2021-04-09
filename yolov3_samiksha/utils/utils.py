@@ -12,6 +12,25 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 
+# Our Code
+def xywh_to_xyxy(label_xywh):
+    x = label_xywh[:, 2]
+    y = label_xywh[:, 3]
+    w = label_xywh[:, 4]
+    h = label_xywh[:, 5]
+
+    label_xyxy = torch.zeros_like(label_xywh)
+    label_xyxy[:, 2] = (x - (w / 2))
+    label_xyxy[:, 3] = (y - (h / 2))
+    label_xyxy[:, 4] = (x + (w / 2))
+    label_xyxy[:, 5] = (y + (h / 2))
+    label_xyxy[:, 0] = label_xywh[:, 0]
+    label_xyxy[:, 1] = label_xywh[:, 1]
+
+    return label_xyxy
+
+
+# Pytorch-Yolov3 code code
 def to_cpu(tensor):
     return tensor.detach().cpu()
 

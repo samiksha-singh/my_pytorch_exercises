@@ -1,22 +1,41 @@
-import os
-import datetime
-from torch.utils.tensorboard import SummaryWriter
+import wandb
+import torch
+
+import utils
 
 
-class Logger(object):
-    def __init__(self, log_dir, log_hist=True):
-        """Create a summary writer logging to log_dir."""
-        if log_hist:    # Check a new folder for each log should be dreated
-            log_dir = os.path.join(
-                log_dir,
-                datetime.datetime.now().strftime("%Y_%m_%d__%H_%M_%S"))
-        self.writer = SummaryWriter(log_dir)
+def log_bboxes(img_tensor, label_tensor):
+    """Upload images and their bounding boxes to WandB for visualization"""
+    img_cat_list = []
+    for idx, img in enumerate(img_tensor):
+        # select bboxes belonging to image using image id
+        matching_bboxes = []
+        for lbl in label_tensor:
+            if lbl[0] == idx:
+                matching_bboxes.append(lbl)
+        label_xywh = torch.stack(matching_bboxes, 0)
 
-    def scalar_summary(self, tag, value, step):
-        """Log a scalar variable."""
-        self.writer.add_scalar(tag, value, step)
+        # convert x,y,w,h to xmin,ymin,xmax,ymax
+        label_xyxy = utils.xywh_to_xyxy(label_xywh)
 
-    def list_of_scalars_summary(self, tag_value_pairs, step):
-        """Log scalar variables."""
-        for tag, value in tag_value_pairs:
-            self.writer.add_scalar(tag, value, step)
+        # Convert bbox tensor to wandb Image for logging
+        prediction_list = []
+        for tensor_ele in label_xyxy:
+            bbox_data = {
+                "position" : {
+                    "minX" : tensor_ele[2].item(),
+                    "maxX" : tensor_ele[4].item(),
+                    "minY" : tensor_ele[3].item(),
+                    "maxY" : tensor_ele[5].item(),
+                },
+                "class_id": int(tensor_ele[1].item()),
+            }
+            prediction_list.append(bbox_data)
+
+        image = wandb.Image(
+            img,
+            boxes={"predictions": {"box_data": prediction_list}}
+        )
+        img_cat_list.append(image)
+    return img_cat_list
+

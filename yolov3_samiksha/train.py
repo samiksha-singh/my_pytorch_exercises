@@ -1,54 +1,18 @@
 import argparse
+import os
 from pathlib import Path
 import numpy as np
 import torch
 import wandb
 from torch import nn
 from torch.utils.data import DataLoader
-from utils import utils
 
-from utils.logger import *
 from models import Darknet
-from utils import utils
+from utils import utils, logger
 from dataset_Pascal import PascalVOC, collate_fn
 from transforms import DEFAULT_TRANSFORMS
 from loss import compute_loss
 
-def xywh_to_xyxy(label_xywh):
-    x = label_xywh[:, 2]
-    y = label_xywh[:, 3]
-    w = label_xywh[:, 4]
-    h = label_xywh[:, 5]
-
-    label_xyxy = torch.zeros_like(label_xywh)
-    label_xyxy[:, 2] = (x - (w / 2))
-    label_xyxy[:, 3] = (y - (h / 2))
-    label_xyxy[:, 4] = (x + (w / 2))
-    label_xyxy[:, 5] = (y + (h / 2))
-    label_xyxy[:, 0] = label_xywh[:, 0]
-    label_xyxy[:, 1] = label_xywh[:, 1]
-
-    return label_xyxy
-
-def log_bboxes(imgs, targets, max_imgs_to_log=3):
-    """Log predicted bboxes to wandb"""
-    for idx, img in enumerate(imgs[:max_imgs_to_log]):
-        # select bboxes belonging to image using image id
-        matching_bboxes = []
-        for lbl in targets:
-            if lbl[0] == idx:
-                matching_bboxes.append(lbl)
-        label_xywh = torch.stack(matching_bboxes, 0)
-
-        # convert x,y,w,h to xmin,ymin,xmax,ymax
-        label_xyxy = xywh_to_xyxy(label_xywh)
-        # convert to absolute values
-        # label_xyxy[:, 2:] *= opt.img_size
-
-        # upload to wandb
-        pass
-
-    return
 
 def train_loop (dataloader, model, compute_loss, optimizer, device):
     sample_metrics = []
@@ -75,17 +39,20 @@ def train_loop (dataloader, model, compute_loss, optimizer, device):
 
 
         # Calculate metrics
-        outputs = utils.non_max_suppression(outputs, conf_thres=opt.conf_thres, iou_thres=opt.nms_thres)
-        label_xyxy = xywh_to_xyxy(targets)
+        model.eval()
+        outputs_eval = model(imgs)
+        outputs_eval = outputs_eval.detach().cpu()
+        outputs_eval = utils.non_max_suppression(outputs_eval, conf_thres=opt.conf_thres, iou_thres=opt.nms_thres)
+        label_xyxy = utils.xywh_to_xyxy(targets).cpu()
         img_size = imgs.shape[1]
         label_xyxy[:, 2:] *= img_size
-        sample_metrics += utils.get_batch_statistics(outputs, label_xyxy, iou_threshold=opt.iou_thres)
+        sample_metrics += utils.get_batch_statistics(outputs_eval, label_xyxy, iou_threshold=opt.iou_thres)
         # Extract labels for calculating full epoch stats
         labels += targets[:, 1].tolist()
 
         if batch_idx % 100 == 0:
             print(f"loss : {loss_:>7f} [{current:>5d}/{len(dataloader.dataset):>5d}]")
-            img_cat_list = bbox_wandb(imgs, targets)
+            img_cat_list = logger.log_bboxes(imgs, targets)
             wandb.log({"Train/Prediction": img_cat_list})
 
             true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
@@ -111,61 +78,15 @@ def test_loop(dataloader, model, compute_loss, device):
     test_loss /= size
     #wandb.log({"Test/loss": test_loss.cpu().item()})
 
+
     print(f"Avg loss: {test_loss.cpu().item():>8f} \n")
     for images, labels in targets:
-        img_cat_list = bbox_wandb(images, labels)
+        img_cat_list = logger.log_bboxes(images, labels)
         wandb.log({"Test/Prediction": img_cat_list})
-# Draw bbox on the images using wandb
-
-def bbox_wandb(img_tensor, label_tensor):
-    img_cat_list = []
-    for idx, img in enumerate(img_tensor):
-        # select bboxes belonging to image using image id
-        a = []
-        for lbl in label_tensor:
-            if lbl[0] == idx:
-                a.append(lbl)
-        b = torch.stack(a, 0)
-
-        # convert x,y,w,h to xmin,ymin,xmax,ymax
-        x = b[:,2]
-        y = b[:,3]
-        w = b[:,4]
-        h = b[:,5]
-        label_xyxy = torch.zeros_like(b)
-        label_xyxy[:,2] = (x - (w/2))
-        label_xyxy[:,3] = (y - (h/2))
-        label_xyxy[:,4] = (x + (w/2))
-        label_xyxy[:,5] = (y + (h/2))
-        label_xyxy[:,0] = b[:,0]
-        label_xyxy[:,1] = b[:,1]
-
-        # Convert bbox tensor to wandb Image for logging
-        prediction_list = []
-        for tensor_ele in label_xyxy:
-            bbox_data = {
-                "position" : {
-                    "minX" : tensor_ele[2].item(),
-                    "maxX" : tensor_ele[4].item(),
-                    "minY" : tensor_ele[3].item(),
-                    "maxY" : tensor_ele[5].item(),
-                },
-                "class_id": int(tensor_ele[1].item()),
-            }
-            prediction_list.append(bbox_data)
-
-        image = wandb.Image(
-            img,
-            boxes={"predictions": {"box_data": prediction_list}}
-        )
-        img_cat_list.append(image)
-    return img_cat_list
 
 
 def main(opt):
-    #wandb.init(project="training_loop_tutorial", entity='samiksha')
-
-    logger = Logger(opt.logdir)
+    wandb.init(project="training_loop_tutorial", entity='samiksha')
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -203,31 +124,6 @@ def main(opt):
         test_loop(testloader, model, compute_loss, device)
 
 
-
-
-    # img = cv2.imread(path_to_img)
-    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    # image = wandb.Image(img, boxes={
-    #     "predictions": {
-    #         "box_data": [{
-    #             "position":{
-    #                 "minX": 0.2,
-    #                 "maxX": 0.1,
-    #                 "minY": 0.1,
-    #                 "maxY": 0.4,
-    #             },
-    #             "class_id": 2,
-    #             "box_caption": "minMax(pixel)",
-    #         },
-    #         ],
-    #     },
-    #
-    # })
-    # wandb.log({"Train/Prediction": image})
-
-    print("Done")
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", type=int, default=300, help="number of epochs")
@@ -241,7 +137,6 @@ if __name__ == "__main__":
     parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
     parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
     parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
-    parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
     parser.add_argument("--verbose", "-v", default=False, action='store_true',
                         help="Makes the training more verbose")
     parser.add_argument("--logdir", type=str, default="logs",
@@ -252,6 +147,3 @@ if __name__ == "__main__":
                         help="root directory for test")
     opt = parser.parse_args()
     main(opt)
-
-
-
