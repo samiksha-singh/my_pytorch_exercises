@@ -338,7 +338,7 @@ def box_iou(box1, box2):
 def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=None, agnostic=False, labels=()):
     """Performs Non-Maximum Suppression (NMS) on inference results
     Returns:
-         detections with shape: nx6 (x1, y1, x2, y2, conf, cls)
+         List[Tensor]: List of detections with Shape=[N, 6].  (x1, y1, x2, y2, conf, cls)
     """
 
     nc = prediction.shape[2] - 5  # number of classes

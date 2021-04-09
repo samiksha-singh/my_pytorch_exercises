@@ -3,9 +3,9 @@ from tqdm import tqdm
 
 from yolov3_samiksha.logger import *
 from utils import utils
+import logger
 
-
-def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres):
+def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres, mode="Train"):
     """Calculate metrics across the dataset"""
     model.eval()
 
@@ -31,11 +31,20 @@ def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres):
 
         sample_metrics += utils.get_batch_statistics(outputs, targets, iou_threshold=iou_thres)
 
+        # Upload images to wandb
+        if batch_i % 25 == 0:
+            logger.log_bboxes(imgs, targets, outputs, f"{mode}/Predictions", 8)
+
     if len(sample_metrics) == 0:  # no detections over whole validation set.
         return None
 
     # Concatenate sample statistics
     true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
     precision, recall, AP, f1, ap_class = utils.ap_per_class(true_positives, pred_scores, pred_labels, labels)
+
+    wandb.log({f"{mode}/Prediction": precision.mean()}, commit=False)
+    wandb.log({f"{mode}/recall": recall.mean()}, commit=False)
+    wandb.log({f"{mode}/AP": AP.mean()}, commit=False)
+    wandb.log({f"{mode}/f1": f1.mean}, commit=False)
 
     return precision, recall, AP, f1, ap_class

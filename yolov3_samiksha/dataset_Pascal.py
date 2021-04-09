@@ -18,6 +18,12 @@ class PascalVOC(Dataset):
         dir_label = dir_root / Path("VOCdevkit/VOC2007/Annotations")
         self.list_imgs = self.get_image_list(dir_img)
         self.list_labels = self.get_label_list(dir_label)
+        num_imgs = len(self.list_imgs)
+        num_labels = len(self.list_labels)
+        if num_imgs != num_labels:
+            raise ValueError(f"Num of images ({num_imgs}) is not equal to num of labels ({num_labels}) "
+                f"in dataset.\n  dir_img: {dir_img}\ndir_label: {dir_label}")
+
         self.transform = transform
         self.class_dict = {
             "background": 0,
