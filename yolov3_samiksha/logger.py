@@ -1,14 +1,17 @@
 import wandb
 import torch
 
-import utils
+from utils import utils
 
 
-def log_bboxes(img_tensor, label_tensor):
+def log_bboxes(img_tensor, label_tensor, caption="Train/Prediction", max_images_to_upload=3):
     """Upload images and their bounding boxes to WandB for visualization"""
+    # Select first N images only
+    img_tensor = img_tensor[:max_images_to_upload]
+
     img_cat_list = []
     for idx, img in enumerate(img_tensor):
-        # select bboxes belonging to image using image id
+        # select bboxes belonging to this image using image id
         matching_bboxes = []
         for lbl in label_tensor:
             if lbl[0] == idx:
@@ -34,8 +37,10 @@ def log_bboxes(img_tensor, label_tensor):
 
         image = wandb.Image(
             img,
-            boxes={"predictions": {"box_data": prediction_list}}
+            boxes={"predictions": {"box_data": prediction_list},
+                   "ground_truth": {"box_data": prediction_list}}
         )
         img_cat_list.append(image)
-    return img_cat_list
 
+    wandb.log({caption: img_cat_list})
+    return

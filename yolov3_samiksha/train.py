@@ -1,88 +1,63 @@
 import argparse
 import os
 from pathlib import Path
-import numpy as np
 import torch
 import wandb
-from torch import nn
 from torch.utils.data import DataLoader
 
 from models import Darknet
-from utils import utils, logger
+from utils import utils
+from yolov3_samiksha import logger
 from dataset_Pascal import PascalVOC, collate_fn
 from transforms import DEFAULT_TRANSFORMS
 from loss import compute_loss
+from test import evaluate
 
 
-def train_loop (dataloader, model, compute_loss, optimizer, device):
-    sample_metrics = []
-    labels = []
+def train_loop (dataloader, model, optimizer, device):
     for batch_idx, (imgs, targets) in enumerate(dataloader):
-
         model.train()
 
-        #now we do the prediction
+        # Forward Pass
         imgs = imgs.to(device, non_blocking=True)
         targets = targets.to(device)
-
         outputs = model(imgs)
 
-        #calculate the loss
+        # Calculate the loss
         loss, loss_components = compute_loss(outputs, targets, model)
-        #backpropogation
+
+        # Backpropogation
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
+        # Logging
         loss_, current = loss.item(), batch_idx * len(imgs)
         wandb.log({"Train/loss": loss_})
-
-
-        # Calculate metrics
-        model.eval()
-        outputs_eval = model(imgs)
-        outputs_eval = outputs_eval.detach().cpu()
-        outputs_eval = utils.non_max_suppression(outputs_eval, conf_thres=opt.conf_thres, iou_thres=opt.nms_thres)
-        label_xyxy = utils.xywh_to_xyxy(targets).cpu()
-        img_size = imgs.shape[1]
-        label_xyxy[:, 2:] *= img_size
-        sample_metrics += utils.get_batch_statistics(outputs_eval, label_xyxy, iou_threshold=opt.iou_thres)
-        # Extract labels for calculating full epoch stats
-        labels += targets[:, 1].tolist()
-
-        if batch_idx % 100 == 0:
+        if batch_idx % 25 == 0:
             print(f"loss : {loss_:>7f} [{current:>5d}/{len(dataloader.dataset):>5d}]")
-            img_cat_list = logger.log_bboxes(imgs, targets)
-            wandb.log({"Train/Prediction": img_cat_list})
-
-            true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
-            precision, recall, AP, f1, ap_class = utils.ap_per_class(true_positives, pred_scores, pred_labels, labels)
-            wandb.log({"Train/precision": precision.mean()})
-            wandb.log({"Train/recall": recall.mean()})
-            wandb.log({"Train/AP": AP.mean()})
-            wandb.log({"Train/F1": f1.mean()})
-
-def test_loop(dataloader, model, compute_loss, device):
-    size = len(dataloader.dataset)
-    test_loss, correct = 0.0, 0.0
-
-    with torch.no_grad():
-        for imgs, targets in dataloader:
-            imgs = imgs.to(device, non_blocking=True)
-            targets = targets.to(device)
-
-            outputs = model(imgs)
-            loss, loss_components = compute_loss(outputs, targets, model)
-            test_loss += loss
-
-    test_loss /= size
-    #wandb.log({"Test/loss": test_loss.cpu().item()})
+            # Upload images to WandB
+            logger.log_bboxes(imgs, targets, "Train/Predictions", 8)
 
 
-    print(f"Avg loss: {test_loss.cpu().item():>8f} \n")
-    for images, labels in targets:
-        img_cat_list = logger.log_bboxes(images, labels)
-        wandb.log({"Test/Prediction": img_cat_list})
+
+def test_loop(dataloader, model, device):
+    precision, recall, AP, f1, ap_class = evaluate(model, dataloader, device, opt.iou_thres, opt.conf_thres, opt.nms_thres)
+    wandb.log({"Train/Prediction": precision.mean()})
+    wandb.log({"Train/recall": recall.mean()})
+    wandb.log({"Train/AP": AP.mean()})
+    wandb.log({"Train/f1": f1.mean})
+
+    for batch_idx, (imgs, targets) in enumerate(dataloader):
+        model.train()
+
+        # Forward Pass
+        imgs = imgs.to(device, non_blocking=True)
+        targets = targets.to(device)
+
+        # Upload images to WandB
+        if batch_idx % 25 == 0:
+            logger.log_bboxes(imgs, targets, "Train/Predictions", 8)
 
 
 def main(opt):
@@ -120,8 +95,8 @@ def main(opt):
 
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
-        train_loop(trainloader, model, compute_loss, optimizer, device)
-        test_loop(testloader, model, compute_loss, device)
+        train_loop(trainloader, model, optimizer, device)
+        test_loop(testloader, model, device)
 
 
 if __name__ == "__main__":

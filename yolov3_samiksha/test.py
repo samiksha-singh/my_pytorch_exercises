@@ -1,28 +1,19 @@
-import argparse
-from pathlib import Path
 import numpy as np
-import torch
-import wandb
-from torch import nn
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from utils.logger import *
-from models import Darknet
+from yolov3_samiksha.logger import *
 from utils import utils
-from dataset_Pascal import PascalVOC, collate_fn
-from transforms import DEFAULT_TRANSFORMS
-from loss import compute_loss
 
 
-def evaluate(model, dataloader, iou_thres, conf_thres, nms_thres):
+def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres):
     """Calculate metrics across the dataset"""
     model.eval()
 
+
     labels = []
     sample_metrics = []  # List of tuples (TP, confs, pred)
-    for batch_i, (_, imgs, targets) in enumerate(tqdm(dataloader, desc="Detecting objects")):
-
+    for batch_i, (imgs, targets) in enumerate(tqdm(dataloader, desc="Detecting objects")):
+        imgs = imgs.to(device)
         if targets is None:
             continue
 
