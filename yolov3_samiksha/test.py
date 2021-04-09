@@ -1,7 +1,6 @@
 import numpy as np
 from tqdm import tqdm
 
-from yolov3_samiksha.logger import *
 from utils import utils
 import logger
 
