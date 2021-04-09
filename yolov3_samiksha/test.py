@@ -42,9 +42,9 @@ def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres, mode="
     true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
     precision, recall, AP, f1, ap_class = utils.ap_per_class(true_positives, pred_scores, pred_labels, labels)
 
-    wandb.log({f"{mode}/Prediction": precision.mean()}, commit=False)
-    wandb.log({f"{mode}/recall": recall.mean()}, commit=False)
-    wandb.log({f"{mode}/AP": AP.mean()}, commit=False)
-    wandb.log({f"{mode}/f1": f1.mean}, commit=False)
+    wandb.log({f"{mode}/precision": precision.mean().item()}, commit=False)
+    wandb.log({f"{mode}/recall": recall.mean().item()}, commit=False)
+    wandb.log({f"{mode}/AP": AP.mean().item()}, commit=False)
+    wandb.log({f"{mode}/f1": f1.mean().item()}, commit=False)
 
     return precision, recall, AP, f1, ap_class

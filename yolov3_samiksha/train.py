@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader
 
 from models import Darknet
 from utils import utils
-from yolov3_samiksha import logger
 from dataset_Pascal import PascalVOC, collate_fn
 from transforms import DEFAULT_TRANSFORMS
 from loss import compute_loss
@@ -36,26 +35,6 @@ def train_loop (dataloader, model, optimizer, device):
         wandb.log({"Train/loss": loss_})
         if batch_idx % 25 == 0:
             print(f"loss : {loss_:>7f} [{current:>5d}/{len(dataloader.dataset):>5d}]")
-
-
-# def test_loop(dataloader, model, device):
-#     precision, recall, AP, f1, ap_class = evaluate(model, dataloader, device, opt.iou_thres, opt.conf_thres, opt.nms_thres)
-#     wandb.log({"Train/Prediction": precision.mean()})
-#     wandb.log({"Train/recall": recall.mean()})
-#     wandb.log({"Train/AP": AP.mean()})
-#     wandb.log({"Train/f1": f1.mean})
-#
-#     for batch_idx, (imgs, targets) in enumerate(dataloader):
-#         model.train()
-#
-#         # Forward Pass
-#         imgs = imgs.to(device, non_blocking=True)
-#         targets = targets.to(device)
-#
-#         # Upload images to WandB
-#         if batch_idx % 25 == 0:
-#             logger.log_bboxes(imgs, targets, outputs, "Train/Predictions", 8)
-#
 
 
 def main(opt):
@@ -102,9 +81,8 @@ def main(opt):
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
         train_loop(trainloader, model, optimizer, device)
-        # test_loop(testloader, model, device)
 
-        evaluate(model, trainloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Train")
+        # evaluate(model, trainloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Train")
         evaluate(model, testloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Test")
 
 
