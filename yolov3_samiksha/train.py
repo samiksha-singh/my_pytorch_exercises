@@ -77,10 +77,10 @@ def main(opt):
     dataset_test = PascalVOC(root_test, transform=DEFAULT_TRANSFORMS)
 
     # Take subset of dataset for faster testing
-    num_images = 100
-    print(f'Warning: Debugging mode, only {num_images} images used in datasets for debugging purposes')
-    dataset_train = torch.utils.data.Subset(dataset_train, range(num_images))
-    dataset_test = torch.utils.data.Subset(dataset_test, range(num_images))
+    # num_images = 100
+    # print(f'Warning: Debugging mode, only {num_images} images used in datasets for debugging purposes')
+    # dataset_train = torch.utils.data.Subset(dataset_train, range(num_images))
+    # dataset_test = torch.utils.data.Subset(dataset_test, range(num_images))
 
     batch_size = model.hyperparams['batch']
     trainloader = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True,
