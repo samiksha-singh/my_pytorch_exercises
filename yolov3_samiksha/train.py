@@ -82,7 +82,6 @@ def main(opt):
         print(f"Epoch {t + 1}\n-------------------------------")
         train_loop(trainloader, model, optimizer, device)
 
-        # evaluate(model, trainloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Train")
         evaluate(model, testloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Test")
 
 

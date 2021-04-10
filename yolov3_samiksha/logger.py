@@ -24,13 +24,9 @@ def log_bboxes(img_tensor, label_tensor, outputs_list, caption="Train/Prediction
         # select label bboxes belonging to this image using image id
         label_xyxy = utils.select_bbox_from_img_id(label_tensor, idx)
 
-        # convert x,y,w,h to xmin,ymin,xmax,ymax
-        # label_xyxy = utils.xywh_to_xyxy(label_xywh)
-
-        # Create dict for logging preds to wandb.
-        # Convert outputs to relative coords
-        img_size = img.shape[0]
-        label_xyxy[-4:] /= float(img_size)
+        _, height, width = img.shape
+        # Create dict for logging labels to wandb.
+        label_xyxy[-4:] /= float(height)  # Convert to relative coords
         label_list = []
         for tensor_ele in label_xyxy:
             bbox_data = {
@@ -44,22 +40,19 @@ def log_bboxes(img_tensor, label_tensor, outputs_list, caption="Train/Prediction
             }
             label_list.append(bbox_data)
 
-        # Create dict for logging labels to wandb.
+        # Create dict for logging preds to wandb.
         output = outputs_list[idx]
-        # Convert outputs to relative coords
-        img_size = img.shape[0]
-        output[:4] /= float(img_size)
-
+        output[:4] /= float(height)  # Convert outputs to relative coords
         prediction_list = []
         for tensor_ele in output:
             bbox_data = {
                 "position": {
                     "minX": tensor_ele[0].item(),
-                    "maxX": tensor_ele[1].item(),
-                    "minY": tensor_ele[2].item(),
+                    "maxX": tensor_ele[2].item(),
+                    "minY": tensor_ele[1].item(),
                     "maxY": tensor_ele[3].item(),
                 },
-                "class_id": int(tensor_ele[1].item()),
+                "class_id": int(tensor_ele[5].item()),
             }
             prediction_list.append(bbox_data)
 
