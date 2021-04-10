@@ -38,7 +38,7 @@ def train_loop (dataloader, model, optimizer, device):
 
 
 def main(opt):
-    wandb_run = wandb.init(project="training_loop_tutorial", entity='samiksha')
+    wandb.init(project="training_loop_tutorial", entity='samiksha')
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
