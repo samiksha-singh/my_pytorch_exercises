@@ -14,6 +14,14 @@ import matplotlib.patches as patches
 
 # Our Code
 def xywh_to_xyxy(label_xywh):
+    """Converts label in format xywh into xyxy (min/max)
+
+    Args:
+        label_xywh (Tensor): The label. Shape: [N, 6] (img_id, cls_id, x, y, w, h).
+
+    Returns:
+        Tensor: label_xyxy. Shape: [N, 6]
+    """
     x = label_xywh[:, 2]
     y = label_xywh[:, 3]
     w = label_xywh[:, 4]
@@ -29,6 +37,21 @@ def xywh_to_xyxy(label_xywh):
 
     return label_xyxy
 
+def select_bbox_from_img_id(batch_labels, img_id):
+    """From the output of the dataloader, select the labels belonging to an image
+
+    Args:
+        batch_labels (Tensor): Shape=[N, 6] (img_id, cls_id, x, y, w, h). The output of the dataloader.
+
+    Returns:
+        Tensor: Shape=[N', 6]. N' < N. It only contains those bounding boxes that belong to the given img_id.
+    """
+    matching_bboxes = []
+    for lbl in batch_labels:
+        if lbl[0] == img_id:
+            matching_bboxes.append(lbl)
+    selected_labels = torch.stack(matching_bboxes, 0)
+    return selected_labels
 
 # Pytorch-Yolov3 code code
 def to_cpu(tensor):

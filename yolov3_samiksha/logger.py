@@ -22,11 +22,7 @@ def log_bboxes(img_tensor, label_tensor, outputs_list, caption="Train/Prediction
     img_cat_list = []
     for idx, img in enumerate(img_tensor):
         # select label bboxes belonging to this image using image id
-        matching_bboxes = []
-        for lbl in label_tensor:
-            if lbl[0] == idx:
-                matching_bboxes.append(lbl)
-        label_xyxy = torch.stack(matching_bboxes, 0)
+        label_xyxy = utils.select_bbox_from_img_id(label_tensor, idx)
 
         # convert x,y,w,h to xmin,ymin,xmax,ymax
         # label_xyxy = utils.xywh_to_xyxy(label_xywh)

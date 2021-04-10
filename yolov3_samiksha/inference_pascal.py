@@ -1,0 +1,124 @@
+import argparse
+import torch
+from tqdm import tqdm
+from utils import utils
+import numpy as np
+from pathlib import Path
+import cv2
+
+from models import Darknet
+
+from dataset_Pascal import PascalVOC, collate_fn
+from transforms import DEFAULT_TRANSFORMS
+
+
+def draw_bbox(img, label_tensor_nx6, img_id):
+    img_opencv = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+    # Skip images with no predictions
+    if label_tensor_nx6.shape[0] == 0:
+        print(f"No predictions for image {img_id}")
+        cv2.imwrite(f"output/{img_id}.jpg", img_opencv)
+        return
+
+    label_np = label_tensor_nx6.numpy()
+    for single_label in label_np:
+        bbox = single_label[:4].astype(np.uint32)
+        start_point = (bbox[0], bbox[1])
+        end_point = (bbox[2], bbox[3])
+        color = (255, 0, 0)
+        thickness = 2
+        image = cv2.rectangle(img_opencv, start_point, end_point, color, thickness)
+
+    cv2.imwrite(f"output/{img_id}.jpg", image)
+
+
+def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres, mode="Train"):
+    """Calculate metrics across the dataset"""
+    model.eval()
+
+    labels = []
+    sample_metrics = []  # List of tuples (TP, confs, pred)
+    for batch_i, (imgs, targets) in enumerate(tqdm(dataloader, desc="Detecting objects")):
+        if batch_i > 0:
+            break
+
+        imgs = imgs.to(device)
+        if targets is None:
+            continue
+
+        # Extract labels
+        labels += targets[:, 1].tolist()
+        # Rescale target
+        targets = utils.xywh_to_xyxy(targets).cpu()
+        img_size = imgs.shape[1]
+        targets[:, 2:] *= img_size
+
+        with torch.no_grad():
+            outputs = model(imgs)
+            outputs = outputs.detach().cpu()
+            outputs = utils.non_max_suppression(outputs, conf_thres=conf_thres, iou_thres=nms_thres)
+
+        imgs = imgs.detach().cpu()
+        for idx, bbox_tensor in enumerate(outputs):
+            images = imgs[idx]
+            images_np = (images.numpy() * 255).astype(np.uint8)
+            images_np = images_np.transpose((1, 2, 0))
+            draw_bbox(images_np, bbox_tensor, idx)
+
+        sample_metrics += utils.get_batch_statistics(outputs, targets, iou_threshold=iou_thres)
+
+    if len(sample_metrics) == 0:  # no detections over whole validation set.
+        return None
+
+    # Concatenate sample statistics
+    true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
+    precision, recall, AP, f1, ap_class = utils.ap_per_class(true_positives, pred_scores, pred_labels, labels)
+
+    print(f"{mode}/precision", precision.mean().item())
+    print(f"{mode}/recall", recall.mean().item())
+    print(f"{mode}/AP", AP.mean().item())
+    print(f"{mode}/f1", f1.mean().item())
+
+    return precision, recall, AP, f1, ap_class
+
+
+if __name__ == "__main__" :
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--weights_path", type=str, default="weights/yolov3.weights", help="path to weights file")
+    parser.add_argument("--root_test", type=Path, default="/home/samiksha/dataset/voc2007/test",
+                        help="root directory for test")
+    parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
+    parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
+    parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
+    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
+    opt = parser.parse_args()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Setup model
+
+    model = Darknet(opt.model_def).to(device)
+
+    # Load weights
+    if opt.weights_path is not None:
+        if opt.weights_path.endswith('.weights'):
+            # Load darknet weights
+            print('Loading darknet weights')
+            model.load_darknet_weights(opt.weights_path)
+        else:
+            # Load checkpoint weights
+            print('Loading trained checkpoint')
+            model.load_state_dict(torch.load(opt.weights_path))
+
+    # dataloader
+    root_test = opt.root_test
+    batch_size = model.hyperparams['batch']
+    dataset_test = PascalVOC(root_test, transform=DEFAULT_TRANSFORMS)
+    testloader = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size, shuffle=False,
+                                             collate_fn=collate_fn, num_workers=8)
+
+    conf_thres = opt.conf_thres
+    nms_thres = opt.nms_thres
+    iou_thres = opt.iou_thres
+    evaluate(model, testloader, device, iou_thres=iou_thres, conf_thres=conf_thres, nms_thres=nms_thres, mode="Train")

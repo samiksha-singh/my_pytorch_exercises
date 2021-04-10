@@ -1,14 +1,15 @@
-import torch
-#from skimage import io, transform
-import numpy as np
-import matplotlib.pyplot as plt
-import xml.etree.ElementTree as ET
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
-import cv2
-from pathlib import Path
 import argparse
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+import cv2
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+from torchvision import transforms
+
 from transforms import DEFAULT_TRANSFORMS
+from utils import utils
 
 
 class PascalVOC(Dataset):
@@ -53,6 +54,19 @@ class PascalVOC(Dataset):
         return len(self.list_labels)
 
     def __getitem__(self, index):
+        """Return image, label
+        Args:
+            index: index of img/label to extract
+
+        Returns:
+            Tensor: image. Shape=[H, W, 3]
+            Tensor: label. Shape=[N, 5] (cls_id, x, y, w, h). Bounding boxes in format x,y,w,h in relative coords.
+
+        Notes:
+            The collate fn converts label to [N, 6] shape, by concatenating all the labels along the 0th axis. It also
+            adds a new element to 1st axis, for image id. The image id is used to select the labels that belong to a
+            particular image.
+        """
         f_img = self.list_imgs[index]
         img = cv2.imread(str(f_img))
         img_numpy = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -132,16 +146,16 @@ class PascalVOC(Dataset):
 
 def collate_fn(batch):
     """
-    The function creates a list of images and labels into a batch
-    The purpose behind using the special function is because the size of our label tensor is not constant because
-    we have variable number of bounding boxes per image
+    The function creates a batch of images and labels.
+    We need to use a custom collate func because we cannot directly create a batch of label tensors, since the number
+    of bounding boxes per image is different (cannot have tensor of shape BxNx5, because N is variable per image).
+
     Args:
         batch: List of outputs from each dataset instance in Dataloader
 
     Returns:
-        Tensor: Image
-        List[Tensor]: labels
-
+        Tensor: Image. Shape=[b, c, h, w]
+        Tensor: labels. Shape=[N, 6] (img_id, cls_id, x, y, w, h). img_id is in range [0, batch_size].
     """
     batch = [data for data in batch if data is not None]
     imgs, bb_targets = list(zip(*batch))
@@ -164,9 +178,6 @@ def draw_bbox(img, label):
     img_np = img_np.transpose((1, 2, 0)) #to change the order of channel
     height, width, _ = img_np.shape
 
-    # Remove channels dim from label
-    label = label.squeeze(0)
-
     # Convert to absolute coords
     label[:, [1, 3]] *= width
     label[:, [2, 4]] *= height
@@ -175,16 +186,7 @@ def draw_bbox(img, label):
     label = label.round().int()
 
     # Convert xywh to xyxy (min/max)
-    x = label[:, 1]
-    y = label[:, 2]
-    w = label[:, 3]
-    h = label[:, 4]
-    label_xyxy = torch.zeros_like(label)
-    label_xyxy[:, 1] = (x - (w/2))
-    label_xyxy[:, 2] = (y - (h/2))
-    label_xyxy[:, 3] = (x + (w/2))
-    label_xyxy[:, 4] = (y + (h/2))
-    label_xyxy[:, 0] = label[:, 0]
+    label_xyxy = utils.xywh_to_xyxy(label)
 
     label_np = label_xyxy.numpy()
     img_opencv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
@@ -216,13 +218,15 @@ def main():
         images, labels = batch
 
         img_bbox = []
-        for img, label in zip(images, labels):
+        for img_idx, img in enumerate(images):
             # single image and its label
-            img = draw_bbox(img, label)
+            label_xyxy = utils.select_bbox_from_img_id(labels, img_idx)
+
+            img = draw_bbox(img, label_xyxy)
             img_bbox.append(img)
 
         concat_img = np.concatenate(img_bbox, axis=1)
-        cv2.imwrite(f"dataset_sample_batch_{idx}.jpg", concat_img)
+        cv2.imwrite(f"output/dataset_sample_batch_{idx}.jpg", concat_img)
 
         if idx >= 1:
             break
@@ -230,7 +234,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-

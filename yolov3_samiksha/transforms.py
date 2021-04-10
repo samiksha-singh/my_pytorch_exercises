@@ -105,7 +105,7 @@ class Resize(object):
 
 DEFAULT_TRANSFORMS = transforms.Compose([
     PadSquare(),
-    Resize(320),
+    Resize(416),
     RelativeLabels(),
     ToTensor(),
 ])
