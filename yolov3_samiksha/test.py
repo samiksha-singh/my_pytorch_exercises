@@ -22,8 +22,8 @@ def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres, mode="
         labels += targets[:, 1].tolist()
         # Rescale target
         targets = utils.xywh_to_xyxy(targets).cpu()
-        img_size = imgs.shape[1]
-        targets[:, 2:] *= img_size
+        _, _, height, width = imgs.shape  # height and width will be the same
+        targets[:, 2:] *= height
 
         with torch.no_grad():
             outputs = model(imgs)
