@@ -103,9 +103,10 @@ class Resize(object):
         return img, bounding_boxes
 
 
-DEFAULT_TRANSFORMS = transforms.Compose([
-    PadSquare(),
-    Resize(416),
-    RelativeLabels(),
-    ToTensor(),
-])
+def get_transforms(img_size=416):
+    return transforms.Compose([
+        PadSquare(),
+        Resize(img_size),
+        RelativeLabels(),
+        ToTensor(),
+    ])

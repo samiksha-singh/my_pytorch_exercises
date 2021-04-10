@@ -8,7 +8,7 @@ import cv2
 
 from models import Darknet
 
-from transforms import DEFAULT_TRANSFORMS
+from transforms import get_transforms
 from dataset_rgb_only import RGBOnly
 
 
@@ -91,7 +91,7 @@ if __name__ == "__main__" :
 
     # dataloader
     root_test = opt.root_test
-    dataset_test = RGBOnly(root_test, transform=DEFAULT_TRANSFORMS)
+    dataset_test = RGBOnly(root_test, transform=get_transforms(img_size=416))
 
     conf_thres = opt.conf_thres
     nms_thres = opt.nms_thres

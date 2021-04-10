@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from dataset_Pascal import PascalVOC, collate_fn
 from models import Darknet
-from transforms import DEFAULT_TRANSFORMS
+from transforms import get_transforms
 from utils import utils
 
 
@@ -140,7 +140,7 @@ if __name__ == "__main__" :
     # dataloader
     root_test = opt.root_test
     batch_size = model.hyperparams['batch']
-    dataset_test = PascalVOC(root_test, transform=DEFAULT_TRANSFORMS)
+    dataset_test = PascalVOC(root_test, transform=get_transforms(img_size=416))
     testloader = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size, shuffle=False,
                                              collate_fn=collate_fn, num_workers=8)
 

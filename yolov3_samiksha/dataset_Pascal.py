@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from transforms import DEFAULT_TRANSFORMS
+from transforms import get_transforms
 from utils import utils
 
 
@@ -209,7 +209,7 @@ def main():
     if not dir_root.is_dir():
         raise ValueError(f"Not a directory: {dir_root}")
 
-    dataset = PascalVOC(dir_root, transform=DEFAULT_TRANSFORMS)
+    dataset = PascalVOC(dir_root, transform=get_transforms(img_size=416))
     print("Size of dataset: ", len(dataset))
 
     training_generator = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)

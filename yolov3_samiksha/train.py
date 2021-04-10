@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from models import Darknet
 from utils import utils
 from dataset_Pascal import PascalVOC, collate_fn
-from transforms import DEFAULT_TRANSFORMS
+from transforms import get_transforms
 from loss import compute_loss
 from test import evaluate
 
@@ -38,7 +38,7 @@ def train_loop (dataloader, model, optimizer, device):
 
 
 def main(opt):
-    wandb.init(project="training_loop_tutorial", entity='samiksha')
+    wandb_run = wandb.init(project="training_loop_tutorial", entity='samiksha')
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -49,11 +49,23 @@ def main(opt):
     model = Darknet(opt.model_def).to(device)
     model.apply(utils.weights_init_normal)
 
+    pretrained_weights = opt.pretrained_weights
+    if pretrained_weights is not None:
+        print(f'\nLoading weights: {pretrained_weights}\n')
+        if pretrained_weights.endswith(".pth"):
+            # Load our pytorch training's checkpoint
+            checkpoint = torch.load(pretrained_weights)
+            model.load_state_dict(checkpoint['model_state_dict'])
+        else:
+            # Load original author's darknet weights (trained on yolo)
+            model.load_darknet_weights(pretrained_weights)
+
     # dataloader
     root_train = opt.root_train
     root_test = opt.root_test
-    dataset_train = PascalVOC(root_train, transform=DEFAULT_TRANSFORMS)
-    dataset_test = PascalVOC(root_test, transform=DEFAULT_TRANSFORMS)
+    img_size = opt.img_size
+    dataset_train = PascalVOC(root_train, transform=get_transforms(img_size=img_size))
+    dataset_test = PascalVOC(root_test, transform=get_transforms(img_size=img_size))
 
     # Take subset of dataset for faster testing
     # num_images = 100
@@ -62,12 +74,11 @@ def main(opt):
     # dataset_test = torch.utils.data.Subset(dataset_test, range(num_images))
 
     batch_size = model.hyperparams['batch']
+    n_cpu = opt.n_cpu
     trainloader = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True,
-                                              collate_fn=collate_fn, num_workers=8)
+                                              collate_fn=collate_fn, num_workers=n_cpu)
     testloader = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size, shuffle=False,
-                                             collate_fn=collate_fn, num_workers=8)
-
-
+                                             collate_fn=collate_fn, num_workers=n_cpu)
 
     # optimizer
     optimizer = torch.optim.Adam(
@@ -77,31 +88,39 @@ def main(opt):
     )
 
     epochs = opt.epochs
-
-    for t in range(epochs):
-        print(f"Epoch {t + 1}\n-------------------------------")
+    evaluation_interval = opt.evaluation_interval
+    checkpoint_interval = opt.checkpoint_interval
+    for epoch_idx in range(epochs):
+        print(f"Epoch {epoch_idx + 1}\n-------------------------------")
         train_loop(trainloader, model, optimizer, device)
 
-        evaluate(model, testloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Test")
+        # Run Evaluation
+        if (epoch_idx+1) % evaluation_interval == 0:
+            evaluate(model, testloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Test")
 
+        # Save checkpoint
+        if (epoch_idx+1) % checkpoint_interval == 0:
+            run_id = wandb.run.id
+            save_dir = Path(f"checkpoints/{run_id}")
+            save_dir.mkdir(parents=True, exist_ok=True)
+            checkpoint_path = str(save_dir / f"yolov3_ckpt_{epoch_idx}.pth")
+
+            torch.save({
+                'epoch': epoch_idx,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+            }, checkpoint_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--pretrained_weights", type=str, help="if specified starts from checkpoint model")
+
     parser.add_argument("--epochs", type=int, default=300, help="number of epochs")
     parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
-    parser.add_argument("--pretrained_weights", type=str, help="if specified starts from checkpoint model")
     parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
     parser.add_argument("--checkpoint_interval", type=int, default=1, help="interval between saving model weights")
     parser.add_argument("--evaluation_interval", type=int, default=1, help="interval evaluations on validation set")
-    parser.add_argument("--multiscale_training", default=True, help="allow for multi-scale training")
-    parser.add_argument("--conf_thres", type=float, default=0.5, help="object confidence threshold")
-    parser.add_argument("--iou_thres", type=float, default=0.5, help="iou threshold required to qualify as detected")
-    parser.add_argument("--nms_thres", type=float, default=0.5, help="iou thresshold for non-maximum suppression")
-    parser.add_argument("--verbose", "-v", default=False, action='store_true',
-                        help="Makes the training more verbose")
-    parser.add_argument("--logdir", type=str, default="logs",
-                        help="Defines the directory where the training log files are stored")
     parser.add_argument("--root_train", type=Path, default="/home/samiksha/dataset/voc2007/train",
                         help="root directory for train")
     parser.add_argument("--root_test", type=Path, default="/home/samiksha/dataset/voc2007/test",
