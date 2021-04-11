@@ -10,7 +10,7 @@ from utils import utils
 from dataset_Pascal import PascalVOC, collate_fn
 from transforms import get_transforms
 from loss import compute_loss
-from test import evaluate
+from test import evaluate_metrics, log_bbox_predictions
 
 
 def train_loop (dataloader, model, optimizer, device):
@@ -68,15 +68,23 @@ def main(opt):
     dataset_test = PascalVOC(root_test, transform=get_transforms(img_size=img_size))
 
     # Take subset of dataset for faster testing
-    # num_images = 100
-    # print(f'Warning: Debugging mode, only {num_images} images used in datasets for debugging purposes')
-    # dataset_train = torch.utils.data.Subset(dataset_train, range(num_images))
-    # dataset_test = torch.utils.data.Subset(dataset_test, range(num_images))
+    debug_mode = opt.debug_mode
+    if debug_mode:
+        num_images_train = 100
+        num_images_test = 100
+        print(f'Warning: Debugging mode, only {num_images_train} images from datasets will be used.')
+    else:
+        num_images_train = len(dataset_train)
+        num_images_test = len(dataset_test)
+    dataset_train = torch.utils.data.Subset(dataset_train, list(range(num_images_train)))
+    dataset_test = torch.utils.data.Subset(dataset_test, list(range(num_images_test)))
 
     batch_size = model.hyperparams['batch']
     n_cpu = opt.n_cpu
     trainloader = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size, shuffle=True,
                                               collate_fn=collate_fn, num_workers=n_cpu)
+
+    sampler = torch.utils.data.SequentialSampler(dataset_test)
     testloader = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size, shuffle=False,
                                              collate_fn=collate_fn, num_workers=n_cpu)
 
@@ -90,13 +98,16 @@ def main(opt):
     epochs = opt.epochs
     evaluation_interval = opt.evaluation_interval
     checkpoint_interval = opt.checkpoint_interval
+    log_image_interval = opt.log_image_interval
     for epoch_idx in range(epochs):
         print(f"Epoch {epoch_idx + 1}\n-------------------------------")
         train_loop(trainloader, model, optimizer, device)
 
         # Run Evaluation
         if (epoch_idx+1) % evaluation_interval == 0:
-            evaluate(model, testloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Test")
+            evaluate_metrics(model, testloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Test")
+        if (epoch_idx+1) % log_image_interval == 0:
+            log_bbox_predictions(model, testloader, device, conf_thres=0.1, nms_thres=0.5, mode="Test")
 
         # Save checkpoint
         if (epoch_idx+1) % checkpoint_interval == 0:
@@ -119,12 +130,15 @@ if __name__ == "__main__":
                         help="root directory for train")
     parser.add_argument("--root_test", type=Path, default="/home/samiksha/dataset/voc2007/test",
                         help="root directory for test")
+    parser.add_argument("--debug_mode", action="store_true",
+                        help="Run in debug mode. Only small subset of data will be used")
 
     parser.add_argument("--epochs", type=int, default=300, help="number of epochs")
     parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
     parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
     parser.add_argument("--checkpoint_interval", type=int, default=20, help="interval between saving model weights")
-    parser.add_argument("--evaluation_interval", type=int, default=1, help="interval evaluations on validation set")
+    parser.add_argument("--evaluation_interval", type=int, default=10, help="interval evaluations on validation set")
+    parser.add_argument("--log_image_interval", type=int, default=1, help="interval evaluations on validation set")
     opt = parser.parse_args()
     main(opt)

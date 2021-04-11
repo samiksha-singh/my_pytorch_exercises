@@ -6,10 +6,9 @@ from tqdm import tqdm
 from utils import utils
 import logger
 
-def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres, mode="Train"):
+def evaluate_metrics(model, dataloader, device, iou_thres, conf_thres, nms_thres, mode="Test"):
     """Calculate metrics across the dataset"""
     model.eval()
-
 
     labels = []
     sample_metrics = []  # List of tuples (TP, confs, pred)
@@ -32,10 +31,6 @@ def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres, mode="
 
         sample_metrics += utils.get_batch_statistics(outputs, targets, iou_threshold=iou_thres)
 
-        # Upload images to wandb
-        if batch_i % 25 == 0:
-            logger.log_bboxes(imgs, targets, outputs, f"{mode}/Predictions", 8)
-
     if len(sample_metrics) == 0:  # no detections over whole validation set.
         return None
 
@@ -45,7 +40,32 @@ def evaluate(model, dataloader, device, iou_thres, conf_thres, nms_thres, mode="
 
     wandb.log({f"{mode}/precision": precision.mean().item()}, commit=False)
     wandb.log({f"{mode}/recall": recall.mean().item()}, commit=False)
-    wandb.log({f"{mode}/AP": AP.mean().item()}, commit=False)
+    wandb.log({f"{mode}/mAP": AP.mean().item()}, commit=False)
     wandb.log({f"{mode}/f1": f1.mean().item()}, commit=False)
 
+    # print("Average Precisions:")
+    # class_dict = dataloader.dataset.dataset.class_dict_reverse
+    # for i, c in enumerate(ap_class):
+    #     print(f"+ Class '{c}' ({class_dict[c]}) - AP: {AP[i]}")
+
     return precision, recall, AP, f1, ap_class
+
+
+def log_bbox_predictions(model, dataloader, device, conf_thres, nms_thres, mode="Test"):
+    model.eval()
+    for batch_i, (imgs, targets) in enumerate(dataloader):
+        imgs = imgs.to(device)
+        if targets is None:
+            continue
+
+        if batch_i > 0:
+            break
+
+        with torch.no_grad():
+            outputs = model(imgs)
+            outputs = outputs.detach().cpu()
+            outputs = utils.non_max_suppression(outputs, conf_thres=conf_thres, iou_thres=nms_thres)
+
+        class_dict = dataloader.dataset.dataset.class_dict_reverse
+        logger.log_bboxes(imgs, targets, outputs, class_dict,
+                          wandb_heading=f"{mode}/Predictions", max_images_to_upload=8)
