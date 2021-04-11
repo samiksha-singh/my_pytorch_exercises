@@ -55,7 +55,7 @@ def log_bboxes(img_tensor,
 
         # Create dict for logging preds to wandb.
         output = outputs_list[idx]
-        output[:4] /= float(height)  # Convert outputs to relative coords
+        output[:, :4] /= float(height)  # Convert outputs to relative coords
         prediction_list = []
         for tensor_ele in output:
             cls_id = int(tensor_ele[5].item())

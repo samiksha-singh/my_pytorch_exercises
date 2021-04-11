@@ -108,7 +108,7 @@ def main(opt):
         if (epoch_idx+1) % evaluation_interval == 0:
             evaluate_metrics(model, testloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Test")
         if (epoch_idx+1) % log_image_interval == 0:
-            log_bbox_predictions(model, testloader, device, conf_thres=0.1, nms_thres=0.5, mode="Test",
+            log_bbox_predictions(model, testloader, device, conf_thres=0.5, nms_thres=0.5, mode="Test",
                                  max_images_to_upload=16)
 
         # Save checkpoint
