@@ -47,11 +47,12 @@ def evaluate_metrics(model, dataloader, device, iou_thres, conf_thres, nms_thres
     # class_dict = dataloader.dataset.dataset.class_dict_reverse
     # for i, c in enumerate(ap_class):
     #     print(f"+ Class '{c}' ({class_dict[c]}) - AP: {AP[i]}")
+    print(f"{mode}/mAP: {AP.mean().item()}")
 
     return precision, recall, AP, f1, ap_class
 
 
-def log_bbox_predictions(model, dataloader, device, conf_thres, nms_thres, mode="Test"):
+def log_bbox_predictions(model, dataloader, device, conf_thres, nms_thres, mode="Test", max_images_to_upload=16):
     model.eval()
     for batch_i, (imgs, targets) in enumerate(dataloader):
         imgs = imgs.to(device)
@@ -61,6 +62,11 @@ def log_bbox_predictions(model, dataloader, device, conf_thres, nms_thres, mode=
         if batch_i > 0:
             break
 
+        # Rescale target
+        targets = utils.xywh_to_xyxy(targets).cpu()
+        _, _, height, width = imgs.shape  # height and width will be the same
+        targets[:, 2:] *= height
+
         with torch.no_grad():
             outputs = model(imgs)
             outputs = outputs.detach().cpu()
@@ -68,4 +74,4 @@ def log_bbox_predictions(model, dataloader, device, conf_thres, nms_thres, mode=
 
         class_dict = dataloader.dataset.dataset.class_dict_reverse
         logger.log_bboxes(imgs, targets, outputs, class_dict,
-                          wandb_heading=f"{mode}/Predictions", max_images_to_upload=8)
+                          wandb_heading=f"{mode}/Predictions", max_images_to_upload=max_images_to_upload)

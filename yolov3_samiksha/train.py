@@ -1,9 +1,12 @@
 import argparse
 import os
+from collections import OrderedDict
 from pathlib import Path
+
 import torch
 import wandb
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from models import Darknet
 from utils import utils
@@ -14,7 +17,7 @@ from test import evaluate_metrics, log_bbox_predictions
 
 
 def train_loop (dataloader, model, optimizer, device):
-    for batch_idx, (imgs, targets) in enumerate(dataloader):
+    for batch_idx, (imgs, targets) in enumerate(tqdm(dataloader, desc="Training")):
         model.train()
 
         # Forward Pass
@@ -33,8 +36,6 @@ def train_loop (dataloader, model, optimizer, device):
         # Logging
         loss_, current = loss.item(), batch_idx * len(imgs)
         wandb.log({"Train/loss": loss_})
-        if batch_idx % 25 == 0:
-            print(f"loss : {loss_:>7f} [{current:>5d}/{len(dataloader.dataset):>5d}]")
 
 
 def main(opt):
@@ -107,7 +108,8 @@ def main(opt):
         if (epoch_idx+1) % evaluation_interval == 0:
             evaluate_metrics(model, testloader, device, iou_thres=0.5, conf_thres=0.1, nms_thres=0.5, mode="Test")
         if (epoch_idx+1) % log_image_interval == 0:
-            log_bbox_predictions(model, testloader, device, conf_thres=0.1, nms_thres=0.5, mode="Test")
+            log_bbox_predictions(model, testloader, device, conf_thres=0.1, nms_thres=0.5, mode="Test",
+                                 max_images_to_upload=16)
 
         # Save checkpoint
         if (epoch_idx+1) % checkpoint_interval == 0:
