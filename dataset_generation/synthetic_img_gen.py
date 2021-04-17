@@ -1,7 +1,8 @@
 import numpy as np
 import cv2
 import random
-
+import argparse
+from pathlib import Path
 
 def overlay_obj_on_canvas(source_img, output_img, source_img_class_id):
     # Randomly geneate Y and X coordinate values where the source_image needs to be pasted
@@ -35,7 +36,25 @@ if __name__ == "__main__":
         2: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/430_edit.png" # dotted lanes
     }
 
-    num_of_output_imgs = 5
+    # accept values of number of images to generate and directory in which the images need to be stored
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dir_output", type=Path, default="output",
+                        help="Directory to store generated img and txt file")
+    parser.add_argument("--num_imgs", type=Path, default=10,
+                        help="Number of images to generate")
+    args = parser.parse_args()
+
+    dir_output = args.dir_output
+    # create directory output
+    dir_output.mkdir(parents=True, exist_ok=True)
+    dir_images = dir_output / "images"
+    dir_annotations = dir_output / "annotations"
+    dir_images.mkdir(parents=True, exist_ok=True)
+    dir_annotations.mkdir(parents=True, exist_ok=True)
+
+
+
+    num_of_output_imgs = args.num_imgs
     for output_img_idx in range(num_of_output_imgs):
 
         # decide how many source image to pick
@@ -64,7 +83,9 @@ if __name__ == "__main__":
 
         # Convert the list of bbox coordinates into numpy array to save it into a text
         bbox_numpy = np.concatenate(bbox_coordinates, axis=0)
-        np.savetxt(f'{output_img_idx:04d}.txt', bbox_numpy, delimiter=',', fmt='%d')
+        f_annotation = dir_annotations / f'{output_img_idx:04d}.txt'
+        np.savetxt(str(f_annotation), bbox_numpy, delimiter=',', fmt='%d')
 
         # Save the output image in a file
-        cv2.imwrite(f'{output_img_idx:04d}.png', output_img)
+        f_images = dir_images / f'{output_img_idx:04d}.png'
+        cv2.imwrite(str(f_images), output_img)
