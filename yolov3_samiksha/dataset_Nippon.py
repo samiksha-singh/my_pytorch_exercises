@@ -12,7 +12,7 @@ from transforms import get_transforms
 from utils import utils
 
 
-class NipponDataset(Dataset):
+class NippleDataset(Dataset):
     def __init__(self, dir_root: Path, transform=None ):
 
         dir_img = dir_root / Path("images")
@@ -193,7 +193,7 @@ def main():
     if not dir_root.is_dir():
         raise ValueError(f"Not a directory: {dir_root}")
 
-    dataset = NipponDataset(dir_root, transform=get_transforms(img_size=416))
+    dataset = NippleDataset(dir_root, transform=get_transforms(img_size=416))
     print("Size of dataset: ", len(dataset))
 
     training_generator = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
