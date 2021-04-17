@@ -1,6 +1,5 @@
 import argparse
 import os
-from collections import OrderedDict
 from pathlib import Path
 
 import torch
