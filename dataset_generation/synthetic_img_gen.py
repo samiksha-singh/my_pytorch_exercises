@@ -35,34 +35,36 @@ if __name__ == "__main__":
         2: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/430_edit.png" # dotted lanes
     }
 
-    # decide how many source image to pick
-    max_source_images = min(len(source_imgs), 5)
-    number_of_source_images_to_use = random.randint(1, max_source_images)
+    num_of_output_imgs = 5
+    for output_img_idx in range(num_of_output_imgs):
 
-    # Create a black image canvas of given dimension
-    output_img = np.zeros((256, 256, 3), dtype=np.uint8)
+        # decide how many source image to pick
+        max_source_images = min(len(source_imgs), 5)
+        number_of_source_images_to_use = random.randint(1, max_source_images)
 
-    bbox_coordinates = []
-    for image_idx in range(number_of_source_images_to_use):
-        print(image_idx)
+        # Create a black image canvas of given dimension
+        output_img = np.zeros((256, 256, 3), dtype=np.uint8)
 
-        # randomly select 1 source image from the dictionary
-        source_img_dict_list = list(source_imgs.items())
-        random_source_img = random.choice(source_img_dict_list) #randomly chose 1 source image from the list of items from dict
-        random_source_img_path = random_source_img[1]
-        random_source_img_class_id = random_source_img[0]
+        bbox_coordinates = []
+        for image_idx in range(number_of_source_images_to_use):
 
-        # Read the image
-        source_img = cv2.imread(random_source_img_path)
-        #print("source_img", source_img.shape)
+            # randomly select 1 source image from the dictionary
+            source_img_dict_list = list(source_imgs.items())
+            random_source_img = random.choice(source_img_dict_list) #randomly chose 1 source image from the list of items from dict
+            random_source_img_path = random_source_img[1]
+            random_source_img_class_id = random_source_img[0]
 
-        # Create bbox coordinate list
-        source_img_coordinates , output_img = overlay_obj_on_canvas(source_img, output_img, random_source_img_class_id)
-        bbox_coordinates.append(source_img_coordinates)
+            # Read the image
+            source_img = cv2.imread(random_source_img_path)
+            #print("source_img", source_img.shape)
 
-    # Convert the list of bbox coordinates into numpy array to save it into a text
-    bbox_numpy = np.concatenate(bbox_coordinates, axis=0)
-    np.savetxt('output.txt', bbox_numpy, delimiter=',', fmt='%d')
+            # Create bbox coordinate list
+            source_img_coordinates , output_img = overlay_obj_on_canvas(source_img, output_img, random_source_img_class_id)
+            bbox_coordinates.append(source_img_coordinates)
 
-    # Save the output image in a file
-    cv2.imwrite('output_img.png', output_img)
+        # Convert the list of bbox coordinates into numpy array to save it into a text
+        bbox_numpy = np.concatenate(bbox_coordinates, axis=0)
+        np.savetxt(f'{output_img_idx:04d}.txt', bbox_numpy, delimiter=',', fmt='%d')
+
+        # Save the output image in a file
+        cv2.imwrite(f'{output_img_idx:04d}.png', output_img)
