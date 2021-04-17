@@ -9,7 +9,8 @@ from tqdm import tqdm
 
 from models import Darknet
 from utils import utils
-from dataset_Pascal import PascalVOC, collate_fn
+# from dataset_Pascal import PascalVOC, collate_fn
+from dataset_Nippon import NippleDataset, collate_fn
 from transforms import get_transforms
 from loss import compute_loss
 from test import evaluate_metrics, log_bbox_predictions
@@ -64,14 +65,17 @@ def main(opt):
     root_train = opt.root_train
     root_test = opt.root_test
     img_size = opt.img_size
-    dataset_train = PascalVOC(root_train, transform=get_transforms(img_size=img_size))
-    dataset_test = PascalVOC(root_test, transform=get_transforms(img_size=img_size))
+    # dataset_train = PascalVOC(root_train, transform=get_transforms(img_size=img_size))
+    # dataset_test = PascalVOC(root_test, transform=get_transforms(img_size=img_size))
+    dataset_train = NippleDataset(root_train, transform=get_transforms(img_size=img_size))
+    dataset_test = NippleDataset(root_test, transform=get_transforms(img_size=img_size))
 
     # Take subset of dataset for faster testing
     debug_mode = opt.debug_mode
     if debug_mode:
-        num_images_train = 100
-        num_images_test = 100
+        num_debug_imgs = 100
+        num_images_train = min(num_debug_imgs, len(dataset_train))
+        num_images_test = min(num_debug_imgs, len(dataset_train))
         print(f'Warning: Debugging mode, only {num_images_train} images from datasets will be used.')
     else:
         num_images_train = len(dataset_train)
@@ -127,9 +131,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--pretrained_weights", type=str,
                         help="Whether to load any weights. Can be original darknet weights or prev pytorch saved checkpoints")
-    parser.add_argument("--root_train", type=Path, default="/home/samiksha/dataset/voc2007/train",
+    parser.add_argument("--root_train", type=Path, default="output",
                         help="root directory for train")
-    parser.add_argument("--root_test", type=Path, default="/home/samiksha/dataset/voc2007/test",
+    parser.add_argument("--root_test", type=Path, default="output",
                         help="root directory for test")
     parser.add_argument("--debug_mode", action="store_true",
                         help="Run in debug mode. Only small subset of data will be used")
