@@ -52,8 +52,6 @@ if __name__ == "__main__":
     dir_images.mkdir(parents=True, exist_ok=True)
     dir_annotations.mkdir(parents=True, exist_ok=True)
 
-
-
     num_of_output_imgs = args.num_imgs
     for output_img_idx in range(num_of_output_imgs):
 
@@ -89,3 +87,17 @@ if __name__ == "__main__":
         # Save the output image in a file
         f_images = dir_images / f'{output_img_idx:04d}.png'
         cv2.imwrite(str(f_images), output_img)
+
+        # Visualize the bboxes
+        dir_debug = dir_output / "debug"
+        dir_debug.mkdir(parents=True, exist_ok=True)
+        f_debug_img = dir_debug / f"{output_img_idx:04d}.png"
+        output_img_debug = output_img.copy()
+        for bbox in bbox_numpy:
+            start_point = (bbox[1], bbox[2])
+            end_point = (bbox[3], bbox[4])
+            color = (255, 0, 0)
+            thickness = 2
+            output_img_debug = cv2.rectangle(output_img_debug, start_point, end_point, color, thickness)
+        cv2.imwrite(str(f_debug_img), output_img_debug)
+

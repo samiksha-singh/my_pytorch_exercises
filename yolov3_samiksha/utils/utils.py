@@ -16,7 +16,7 @@ def xywh_to_xyxy(label_xywh):
         label_xywh (Tensor): The label. Shape: [N, 6] (img_id, cls_id, x, y, w, h).
 
     Returns:
-        Tensor: label_xyxy. Shape: [N, 6]
+        Tensor: label_xyxy. Shape: [N, 6] (img_id, cls_id, xmin, ymin, xmax, ymax).
     """
     x = label_xywh[:, 2]
     y = label_xywh[:, 3]

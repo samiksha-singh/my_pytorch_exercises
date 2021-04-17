@@ -12,11 +12,11 @@ from transforms import get_transforms
 from utils import utils
 
 
-class PascalVOC(Dataset):
+class NipponDataset(Dataset):
     def __init__(self, dir_root: Path, transform=None ):
 
-        dir_img = dir_root / Path("VOCdevkit/VOC2007/JPEGImages")
-        dir_label = dir_root / Path("VOCdevkit/VOC2007/Annotations")
+        dir_img = dir_root / Path("images")
+        dir_label = dir_root / Path("annotations")
         self.list_imgs = self.get_image_list(dir_img)
         self.list_labels = self.get_label_list(dir_label)
         num_imgs = len(self.list_imgs)
@@ -27,51 +27,15 @@ class PascalVOC(Dataset):
 
         self.transform = transform
         self.class_dict_reverse = {
-            0: "background",
-            1: "aeroplane",
-            2: "bicycle",
-            3: "bird",
-            4: "boat",
-            5: "bottle",
-            6: "bus",
-            7: "car",
-            8: "cat",
-            9: "chair",
-            10: "cow",
-            11: "diningtable",
-            12: "dog",
-            13: "horse",
-            14: "motorbike",
-            15: "person",
-            16: "pottedplant",
-            17: "sheep",
-            18: "sofa",
-            19: "train",
-            20: "tvmonitor"
+            0: "car",
+            1: "5_dashes",
+            2: "dotted_lanes",
         }
 
         self.class_dict = {
-            "background": 0,
-            "aeroplane": 1,
-            "bicycle": 2,
-            "bird": 3,
-            "boat": 4,
-            "bottle": 5,
-            "bus": 6,
-            "car": 7,
-            "cat": 8,
-            "chair": 9,
-            "cow": 10,
-            "diningtable": 11,
-            "dog": 12,
-            "horse": 13,
-            "motorbike": 14,
-            "person": 15,
-            "pottedplant": 16,
-            "sheep": 17,
-            "sofa": 18,
-            "train": 19,
-            "tvmonitor": 20
+            "car":0,
+            "5_dashes":1,
+            "dotted_lanes":2,
         }
 
     def __len__(self):
@@ -96,8 +60,7 @@ class PascalVOC(Dataset):
         img_numpy = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         f_label = self.list_labels[index]
-        label = self.read_label(f_label)
-        label_numpy = np.array(label, dtype=np.float32)
+        label_numpy = self.read_label(f_label)
 
         if self.transform is not None:
             try:
@@ -127,34 +90,19 @@ class PascalVOC(Dataset):
 
         return image, bb_target
 
-    def read_label(self, label):
-        ele_obj_list = []
-        tree = ET.parse(label)
-        root = tree.getroot()
-        for _object in root.findall('object'):
-            list_obj = []
-            ele_obj = _object.find('name').text
-            list_obj.append(ele_obj)
+    def read_label(self, f_label):
+        label_np = np.loadtxt(f_label, delimiter=",")
 
-            bbox = _object.find('bndbox')
-            for child in bbox:
-                # Iterate over xmin/xmax/ymin/ymax within the xml file
-                list_obj.append(int(child.text))
-            ele_obj_list.append(list_obj)
+        # If single bbox is present, shape will be (5,) instead (1, 5)
+        if len(label_np.shape) == 1:
+            label_np = np.expand_dims(label_np, axis=0)
 
-        # change the sting class value to integer value for it to convert into a tensor
-        label_list = []
-        for item in ele_obj_list:
-            class_str = item[0]
-            class_int = self.class_dict[class_str]
-            item[0] = class_int
-            label_list.append(item)
-        return label_list
+        return label_np
 
     @staticmethod
     def get_image_list(dir_img):
         img_path = Path(dir_img)
-        list_imgs = sorted(img_path.rglob('*.jpg'))  # this is called a generator
+        list_imgs = sorted(img_path.rglob('*.png'))  # this is called a generator
         if len(list_imgs) == 0:
             raise ValueError(f"No images found, {dir_img}")
         return list_imgs
@@ -162,9 +110,9 @@ class PascalVOC(Dataset):
     @staticmethod
     def get_label_list(dir_label):
         label_path = Path(dir_label)
-        list_labels = sorted(label_path.rglob('*.xml'))
+        list_labels = sorted(label_path.rglob('*.txt'))
         if len(list_labels) == 0:
-            raise ValueError(f"No images found, {dir_label}")
+            raise ValueError(f"No labels found, {dir_label}")
         return list_labels
 
 
@@ -192,12 +140,24 @@ def collate_fn(batch):
     # we add an image index to the 1st axis.
     for i, boxes in enumerate(bb_targets):
         boxes[:, 0] = i
-    bb_targets = torch.cat(bb_targets, 0)
 
-    return imgs, bb_targets
+    bb_targets_cat = torch.cat(bb_targets, 0)
+
+    return imgs, bb_targets_cat
 
 
 def draw_bbox(img, label):
+    """
+    Draw bbox on the img for visualization to check correctness of data
+
+    Args:
+        img (torch.Tensor): RGB image. Shape: (3, H, W)
+        label (torch.Tensor): Bounding boxes corresponding to this rgb image.
+            Shape: [N, 6] (img_id, cls_id, xmin, ymin, w, h) -> relative coords.
+
+    Returns:
+        numpy.ndarray: RGB image with rectangles drawn around the objects
+    """
     img_np = (img.numpy() * 255).astype(np.uint8)
     img_np = img_np.transpose((1, 2, 0)) #to change the order of channel
     height, width, _ = img_np.shape
@@ -233,7 +193,7 @@ def main():
     if not dir_root.is_dir():
         raise ValueError(f"Not a directory: {dir_root}")
 
-    dataset = PascalVOC(dir_root, transform=get_transforms(img_size=416))
+    dataset = NipponDataset(dir_root, transform=get_transforms(img_size=416))
     print("Size of dataset: ", len(dataset))
 
     training_generator = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
