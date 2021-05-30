@@ -30,12 +30,23 @@ class NippleDataset(Dataset):
             0: "car",
             1: "5_dashes",
             2: "dotted_lanes",
+            3: "one_dash" ,
+            4: "two_dash" ,
+            5: "three_dash" ,
+            6: "four_dash" ,
+            7 : "Dotted_lines_LR"
+
         }
 
         self.class_dict = {
             "car":0,
             "5_dashes":1,
             "dotted_lanes":2,
+            "one_dash":3,
+            "two_dash":4,
+            "three_dash":5,
+            "four_dash":6,
+            "Dotted_lines_LR":7
         }
 
     def __len__(self):

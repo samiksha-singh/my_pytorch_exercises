@@ -33,14 +33,19 @@ if __name__ == "__main__":
     source_imgs = {
         0: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/car_edit.png",  # car
         1: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/1521_edit.png",  # 5 dashes
-        2: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/430_edit.png" # dotted lanes
+        2: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/430_edit.png" ,# dotted lanes green
+        3 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/one_dash.png" ,#one dash
+        4 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/two_dash.png" , #two dash
+        5 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/three_dash.png" , #three dash
+        6 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/four_dash.png" , #four dash
+        7 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/Dotted_lines_LR.png" # dotted lanes white
     }
 
     # accept values of number of images to generate and directory in which the images need to be stored
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_output", type=Path, default="output",
                         help="Directory to store generated img and txt file")
-    parser.add_argument("--num_imgs", type=Path, default=10,
+    parser.add_argument("--num_imgs", type=Path, default=20,
                         help="Number of images to generate")
     args = parser.parse_args()
 
