@@ -10,7 +10,7 @@ from tqdm import tqdm
 from models import Darknet
 from utils import utils
 # from dataset_Pascal import PascalVOC, collate_fn
-from dataset_Nippon import NippleDataset, collate_fn
+from dataset_Nippon import NipponDataset, collate_fn
 from transforms import get_transforms
 from loss import compute_loss
 from test import evaluate_metrics, log_bbox_predictions
@@ -67,8 +67,8 @@ def main(opt):
     img_size = opt.img_size
     # dataset_train = PascalVOC(root_train, transform=get_transforms(img_size=img_size))
     # dataset_test = PascalVOC(root_test, transform=get_transforms(img_size=img_size))
-    dataset_train = NippleDataset(root_train, transform=get_transforms(img_size=img_size))
-    dataset_test = NippleDataset(root_test, transform=get_transforms(img_size=img_size))
+    dataset_train = NipponDataset(root_train, transform=get_transforms(img_size=img_size))
+    dataset_test = NipponDataset(root_test, transform=get_transforms(img_size=img_size))
 
     # Take subset of dataset for faster testing
     debug_mode = opt.debug_mode
@@ -133,12 +133,12 @@ if __name__ == "__main__":
                         help="Whether to load any weights. Can be original darknet weights or prev pytorch saved checkpoints")
     parser.add_argument("--root_train", type=Path, default="output",
                         help="root directory for train")
-    parser.add_argument("--root_test", type=Path, default="output",
+    parser.add_argument("--root_test", type=Path, default="Nippon_test_img_dataset",
                         help="root directory for test")
     parser.add_argument("--debug_mode", action="store_true",
                         help="Run in debug mode. Only small subset of data will be used")
 
-    parser.add_argument("--epochs", type=int, default=300, help="number of epochs")
+    parser.add_argument("--epochs", type=int, default=50, help="number of epochs")
     parser.add_argument("--model_def", type=str, default="config/yolov3.cfg", help="path to model definition file")
     parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
     parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")

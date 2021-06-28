@@ -12,7 +12,7 @@ from transforms import get_transforms
 from utils import utils
 
 
-class NippleDataset(Dataset):
+class NipponDataset(Dataset):
     def __init__(self, dir_root: Path, transform=None ):
 
         dir_img = dir_root / Path("images")
@@ -27,26 +27,46 @@ class NippleDataset(Dataset):
 
         self.transform = transform
         self.class_dict_reverse = {
-            0: "car",
-            1: "5_dashes",
-            2: "dotted_lanes",
-            3: "one_dash" ,
-            4: "two_dash" ,
-            5: "three_dash" ,
-            6: "four_dash" ,
-            7 : "Dotted_lines_LR"
-
+            0: "car_small",
+            1: "car_small_g",
+            2: "car_big",
+            3: "car_big_g" ,
+            4: "car_big_r" ,
+            5: "one_dash" ,
+            6: "two_dash" ,
+            7: "three_dash",
+            8: "four_dash",
+            9: "five_dash",
+            10: "Dotted_lines_LR",
+            11: "Dotted_lines_LR_g",
+            12: "Dotted_lines_LR_r",
+            13: "brackets_LR",
+            14: "brackets_LR_g",
+            15: "triangles_LR",
+            16: "triangles_LR_g",
+            17: "triangles_LR_r"
         }
 
         self.class_dict = {
-            "car":0,
-            "5_dashes":1,
-            "dotted_lanes":2,
-            "one_dash":3,
-            "two_dash":4,
-            "three_dash":5,
-            "four_dash":6,
-            "Dotted_lines_LR":7
+            "car_small":0,
+            "car_small_g":1,
+            "car_big":2,
+            "car_big_g":3,
+            "car_big_r":4,
+            "one_dash":5,
+            "two_dash":6,
+            "three_dash":7,
+            "four_dash": 8,
+            "five_dash": 9,
+            "Dotted_lines_LR": 10,
+            "Dotted_lines_LR_g": 11,
+            "Dotted_lines_LR_r": 12,
+            "brackets_LR": 13,
+            "brackets_LR_g": 14,
+            "triangles_LR": 15,
+            "triangles_LR_g": 16,
+            "triangles_LR_r": 17,
+
         }
 
     def __len__(self):
@@ -204,7 +224,7 @@ def main():
     if not dir_root.is_dir():
         raise ValueError(f"Not a directory: {dir_root}")
 
-    dataset = NippleDataset(dir_root, transform=get_transforms(img_size=416))
+    dataset = NipponDataset(dir_root, transform=get_transforms(img_size=416))
     print("Size of dataset: ", len(dataset))
 
     training_generator = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)

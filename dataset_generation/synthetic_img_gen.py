@@ -31,21 +31,31 @@ def overlay_obj_on_canvas(source_img, output_img, source_img_class_id):
 if __name__ == "__main__":
     # Dictionary of source image path
     source_imgs = {
-        0: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/car_edit.png",  # car
-        1: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/1521_edit.png",  # 5 dashes
-        2: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/430_edit.png" ,# dotted lanes green
-        3 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/one_dash.png" ,#one dash
-        4 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/two_dash.png" , #two dash
-        5 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/three_dash.png" , #three dash
-        6 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/four_dash.png" , #four dash
-        7 : "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/Dotted_lines_LR.png" # dotted lanes white
+        0: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/car_small.png",  # car small
+        1: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/car_small_g.png",  # car small green
+        2: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/car_big.png", # car big
+        3: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/car_big_g.png",  # car big green
+        4: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/car_big_r.png",  # car big red
+        5: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/one_dash.png" ,#one dash
+        6: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/two_dash.png",  # two dash
+        7: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/three_dash.png" , #three dash
+        8: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/four_dash.png" , #four dash
+        9: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/five_dash.png",  # five dash
+        10: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/Dotted_lines_LR.png", # dotted lanes white
+        11: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/dotted_lanes_g.png" , # dotted lanes green
+        12: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/dotted_lanes_LR_r.png" , # dotted lanes red
+        13: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/brackets_LR.png",  # brackets LR
+        14: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/brackets_LR_g.png",  # brackets LR green
+        15: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/triangles_LR.png",  # triangles LR
+        16: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/triangles_LR_g.png",  # triangles LR green
+        17: "/Users/samiksha/master_thesis/images_from_drive_nippon/my_dataset/triangles_LR_r.png",  # triangles LR red
     }
 
     # accept values of number of images to generate and directory in which the images need to be stored
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_output", type=Path, default="output",
                         help="Directory to store generated img and txt file")
-    parser.add_argument("--num_imgs", type=Path, default=20,
+    parser.add_argument("--num_imgs", type=Path, default=2000,
                         help="Number of images to generate")
     args = parser.parse_args()
 
@@ -61,7 +71,7 @@ if __name__ == "__main__":
     for output_img_idx in range(num_of_output_imgs):
 
         # decide how many source image to pick
-        max_source_images = min(len(source_imgs), 5)
+        max_source_images = min(len(source_imgs), 4)
         number_of_source_images_to_use = random.randint(1, max_source_images)
 
         # Create a black image canvas of given dimension
